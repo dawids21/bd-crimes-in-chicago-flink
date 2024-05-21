@@ -1,0 +1,1 @@
+docker exec -it kafka bash -c "/data/init-local.sh"
