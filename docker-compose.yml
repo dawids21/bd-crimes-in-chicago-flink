@@ -24,3 +24,27 @@ services:
       - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
     volumes:
       - './data:/data'
+
+  flink-jobmanager:
+    image: flink:1.15.4
+    container_name: flink-jobmanager
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager        
+
+  flink-taskmanager:
+    image: flink:1.15.4
+    container_name: flink-taskmanager
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    scale: 1
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 2
