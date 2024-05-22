@@ -1,0 +1,5 @@
+ID,Date,IUCR,Arrest,Domestic,District,ComArea,Latitude,Longitude
+1,2023-01-01T00:08:00.000Z,0110,True,False,1.0,1.0,1.0,1.0
+2,2023-01-01T00:08:00.000Z,0141,True,True,1.0,1.0,1.0,1.0
+3,2023-01-01T00:08:00.000Z,0141,True,False,1.0,1.0,1.0,1.0
+4,2023-01-01T00:08:00.000Z,0110,False,False,1.0,1.0,1.0,1.0

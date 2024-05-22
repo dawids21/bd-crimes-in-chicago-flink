@@ -19,9 +19,6 @@ import xyz.stasiak.bigdata.model.Crime;
 import xyz.stasiak.bigdata.model.CrimeAggregate;
 import xyz.stasiak.bigdata.model.IucrCode;
 
-import java.time.LocalDateTime;
-import java.time.Month;
-
 public class Main {
 
     public static MapStateDescriptor<String, IucrCode> iucrCodeStateDescriptor = new MapStateDescriptor<>(
@@ -38,21 +35,21 @@ public class Main {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-//        DataStream<Crime> crimesSource = env.fromSource(Connectors.getCrimesSource(properties), WatermarkStrategy.noWatermarks(), "Crimes Source");
-        DataStream<Crime> crimesSource = env.fromElements(
-                new Crime(1, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0110", true, false, 1, 1, 1.0, 1.0),
-                new Crime(2, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0141", true, true, 1, 1, 1.0, 1.0),
-                new Crime(3, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0141", true, false, 1, 1, 1.0, 1.0),
-                new Crime(4, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0110", false, false, 1, 1, 1.0, 1.0),
-                new Crime(5, LocalDateTime.of(2023, Month.FEBRUARY, 1, 8, 0), "0110", true, false, 1, 1, 1.0, 1.0),
-                new Crime(6, LocalDateTime.of(2023, Month.MARCH, 1, 8, 0), "0141", false, true, 1, 1, 1.0, 1.0),
-                new Crime(7, LocalDateTime.of(2023, Month.MARCH, 1, 8, 0), "0141", false, true, 1, 1, 1.0, 1.0)
-        );
+        DataStream<Crime> crimesSource = env.fromSource(Connectors.getCrimesSource(properties), WatermarkStrategy.noWatermarks(), "Crimes Source");
+//        DataStream<Crime> crimesSource = env.fromElements(
+//                new Crime(1, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0110", true, false, 1, 1, 1.0, 1.0),
+//                new Crime(2, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0141", true, true, 1, 1, 1.0, 1.0),
+//                new Crime(3, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0141", true, false, 1, 1, 1.0, 1.0),
+//                new Crime(4, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0110", false, false, 1, 1, 1.0, 1.0),
+//                new Crime(5, LocalDateTime.of(2023, Month.FEBRUARY, 1, 8, 0), "0110", true, false, 1, 1, 1.0, 1.0),
+//                new Crime(6, LocalDateTime.of(2023, Month.MARCH, 1, 8, 0), "0141", false, true, 1, 1, 1.0, 1.0),
+//                new Crime(7, LocalDateTime.of(2023, Month.MARCH, 1, 8, 0), "0141", false, true, 1, 1, 1.0, 1.0)
+//        );
         DataStream<IucrCode> iucrSource = env.fromSource(Connectors.getIucrSource(properties), WatermarkStrategy.noWatermarks(), "Iucr Source");
 
         BroadcastStream<IucrCode> iucrCodeBroadcastStream = iucrSource.broadcast(iucrCodeStateDescriptor);
 
-        DataStream<String> aggOutput = crimesSource
+        DataStream<CrimeAggregate> aggOutput = crimesSource
                 .connect(iucrSource)
                 .keyBy(Crime::getIucrCode, IucrCode::getCode)
                 .flatMap(new ControlFunction())
@@ -72,12 +69,34 @@ public class Main {
                     crimeAggregate.setCountDomestic(crime1.getCountDomestic() + crime2.getCountDomestic());
                     crimeAggregate.setCountMonitoredByFbi(crime1.getCountMonitoredByFbi() + crime2.getCountMonitoredByFbi());
                     return crimeAggregate;
+                });
+//                .map(CrimeAggregate::toString);
+
+        //TODO
+        DataStream<String> anomalyOutput = crimesSource
+                .connect(iucrSource)
+                .keyBy(Crime::getIucrCode, IucrCode::getCode)
+                .flatMap(new ControlFunction())
+                .connect(iucrCodeBroadcastStream)
+                .process(new CrimeFbiEnrichmentFunction(iucrCodeStateDescriptor))
+                .map(CrimeAggregate::fromCrimeFbi)
+                .keyBy(CrimeAggregate::getDistrict)
+                .window(SlidingProcessingTimeWindows.of(Time.days(7), Time.days(1))) //TODO
+                .reduce((crime1, crime2) -> {
+                    CrimeAggregate crimeAggregate = new CrimeAggregate();
+                    crimeAggregate.setMonth(crime1.getMonth());
+                    crimeAggregate.setPrimaryDescription(crime1.getPrimaryDescription());
+                    crimeAggregate.setDistrict(crime1.getDistrict());
+                    crimeAggregate.setCount(crime1.getCount() + crime2.getCount());
+                    crimeAggregate.setCountArrest(crime1.getCountArrest() + crime2.getCountArrest());
+                    crimeAggregate.setCountDomestic(crime1.getCountDomestic() + crime2.getCountDomestic());
+                    crimeAggregate.setCountMonitoredByFbi(crime1.getCountMonitoredByFbi() + crime2.getCountMonitoredByFbi());
+                    return crimeAggregate;
                 })
                 .map(CrimeAggregate::toString);
 
-        DataStream<String> anomalyOutput = iucrSource.map(IucrCode::toString);
-
-        aggOutput.sinkTo(Connectors.getAggSink(properties));
+//        aggOutput.sinkTo(Connectors.getAggSink(properties));
+        Connectors.getCassandraAggSink(aggOutput, properties);
         anomalyOutput.sinkTo(Connectors.getAnomalySink(properties));
 
         env.execute("FlinkCrimesChicago");

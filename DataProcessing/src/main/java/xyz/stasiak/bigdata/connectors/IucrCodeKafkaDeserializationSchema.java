@@ -12,9 +12,9 @@ public class IucrCodeKafkaDeserializationSchema implements KafkaRecordDeserializ
         IucrCode iucrCode = new IucrCode();
         iucrCode.setCode(getCode(new String(record.key())));
         String[] values = new String(record.value()).split(",");
-        iucrCode.setPrimaryDescription(values[0]);
-        iucrCode.setSecondaryDescription(values[1]);
-        iucrCode.setMonitoredByFbi("I".equals(values[2]));
+        iucrCode.setPrimaryDescription(values[1]);
+        iucrCode.setSecondaryDescription(values[2]);
+        iucrCode.setMonitoredByFbi("I".equals(values[3]));
         out.collect(iucrCode);
     }
 

@@ -7,7 +7,10 @@ import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.connectors.cassandra.CassandraSink;
 import xyz.stasiak.bigdata.model.Crime;
+import xyz.stasiak.bigdata.model.CrimeAggregate;
 import xyz.stasiak.bigdata.model.IucrCode;
 
 public class Connectors {
@@ -31,15 +34,9 @@ public class Connectors {
                 .build();
     }
 
-    public static KafkaSink<String> getAggSink(ParameterTool properties) {
-        return KafkaSink.<String>builder()
-                .setBootstrapServers("kafka:9092")
-                .setRecordSerializer(KafkaRecordSerializationSchema.builder()
-                        .setTopic("agg-output")
-                        .setValueSerializationSchema(new SimpleStringSchema())
-                        .build()
-                )
-                .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+    public static CassandraSink<CrimeAggregate> getCassandraAggSink(DataStream<CrimeAggregate> input, ParameterTool properties) throws Exception {
+        return CassandraSink.addSink(input)
+                .setHost("cassandra", 9042)
                 .build();
     }
 

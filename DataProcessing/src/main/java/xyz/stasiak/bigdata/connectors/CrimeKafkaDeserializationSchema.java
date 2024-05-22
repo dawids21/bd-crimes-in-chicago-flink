@@ -24,14 +24,14 @@ public class CrimeKafkaDeserializationSchema implements KafkaRecordDeserializati
         Crime crime = new Crime();
         crime.setId(Long.parseLong(new String(record.key())));
         String[] values = new String(record.value()).split(",");
-        crime.setDate(LocalDateTime.parse(values[0], formatter));
-        crime.setIucrCode(values[1]);
-        crime.setArrest(Boolean.parseBoolean(values[2]));
-        crime.setDomestic(Boolean.parseBoolean(values[3]));
-        crime.setDistrict(Math.round(Float.parseFloat(values[4])));
-        crime.setCommunityArea(Math.round(Float.parseFloat(values[5])));
-        crime.setLatitude(Double.parseDouble(values[6]));
-        crime.setLongitude(Double.parseDouble(values[7]));
+        crime.setDate(LocalDateTime.parse(values[1], formatter));
+        crime.setIucrCode(values[2]);
+        crime.setArrest(Boolean.parseBoolean(values[3]));
+        crime.setDomestic(Boolean.parseBoolean(values[4]));
+        crime.setDistrict(Math.round(Float.parseFloat(values[5])));
+        crime.setCommunityArea(Math.round(Float.parseFloat(values[6])));
+        crime.setLatitude(Double.parseDouble(values[7]));
+        crime.setLongitude(Double.parseDouble(values[8]));
         out.collect(crime);
     }
 
