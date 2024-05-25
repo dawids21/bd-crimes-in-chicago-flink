@@ -22,10 +22,8 @@ public class CrimeFbiEnrichmentFunction extends BroadcastProcessFunction<Crime, 
         ReadOnlyBroadcastState<String, IucrCode> state = ctx.getBroadcastState(iucrCodeStateDescriptor);
         CrimeFbi crimeFbi;
         if (state.contains(value.getIucrCode())) {
-            System.out.println("OK " + value.getIucrCode());
             crimeFbi = CrimeFbi.fromCrime(value, state.get(value.getIucrCode()));
         } else {
-            System.out.println("not OK " + value.getIucrCode());
             crimeFbi = CrimeFbi.fromCrime(value);
         }
         out.collect(crimeFbi);

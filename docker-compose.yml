@@ -34,7 +34,9 @@ services:
     environment:
       - |
         FLINK_PROPERTIES=
-        jobmanager.rpc.address: flink-jobmanager        
+        jobmanager.rpc.address: flink-jobmanager
+    volumes:
+      - './data:/data'
 
   flink-taskmanager:
     image: flink:1.15.4
@@ -48,6 +50,8 @@ services:
         FLINK_PROPERTIES=
         jobmanager.rpc.address: flink-jobmanager
         taskmanager.numberOfTaskSlots: 2
+    volumes:
+      - './data:/data'
 
   cassandra:
     image: cassandra:latest
