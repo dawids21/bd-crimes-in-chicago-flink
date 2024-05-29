@@ -1,5 +1,6 @@
 package xyz.stasiak.bigdata.windows;
 
+import lombok.AllArgsConstructor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -14,7 +15,10 @@ import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.Collections;
 
+@AllArgsConstructor
 public class MonthTumblingEventTimeWindows extends WindowAssigner<Object, TimeWindow> {
+
+    private final String delay;
 
     @Override
     public Collection<TimeWindow> assignWindows(Object element, long timestamp, WindowAssigner.WindowAssignerContext context) {
@@ -31,7 +35,7 @@ public class MonthTumblingEventTimeWindows extends WindowAssigner<Object, TimeWi
 
     @Override
     public Trigger<Object, TimeWindow> getDefaultTrigger(StreamExecutionEnvironment env) {
-        return EventTimeTrigger.create();
+        return delay.equals("A") ? EveryEventTimeTrigger.create() : EventTimeTrigger.create();
     }
 
     @Override

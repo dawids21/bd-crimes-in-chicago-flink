@@ -25,6 +25,9 @@
             </configuration>
           </execution>
         </executions>
+        <configuration>
+          <finalName>KafkaProducer</finalName>
+        </configuration>
       </plugin>
     </plugins>
   </build>

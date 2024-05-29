@@ -19,12 +19,9 @@ import xyz.stasiak.bigdata.functions.ControlFunction;
 import xyz.stasiak.bigdata.functions.CrimeAnomalyProcessFunction;
 import xyz.stasiak.bigdata.functions.CrimeFbiEnrichmentFunction;
 import xyz.stasiak.bigdata.model.*;
-import xyz.stasiak.bigdata.windows.EveryEventTimeTrigger;
 import xyz.stasiak.bigdata.windows.MonthTumblingEventTimeWindows;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.Month;
 import java.time.ZoneOffset;
 
 public class Main {
@@ -37,30 +34,13 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
 
-        ParameterTool propertiesFromFile = ParameterTool.fromPropertiesFile(Main.class.getResourceAsStream("/flink.properties"));
-        ParameterTool propertiesFromArgs = ParameterTool.fromArgs(args);
-        ParameterTool properties = propertiesFromFile.mergeWith(propertiesFromArgs);
+        ParameterTool properties = ParameterTool.fromArgs(args);
+        System.out.println("Properties");
+        properties.toMap().forEach((k, v) -> System.out.println(k + ": " + v));
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-//        DataStream<Crime> crimesSource = env.fromSource(Connectors.getCrimesSource(properties), WatermarkStrategy.noWatermarks(), "Crimes Source");
-        DataStream<Crime> crimesSource = env.fromElements(
-                new Crime(1, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0110", true, false, 1, 1, 1.0, 1.0),
-                new Crime(2, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0141", true, true, 1, 1, 1.0, 1.0),
-                new Crime(3, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0141", true, false, 1, 1, 1.0, 1.0),
-                new Crime(4, LocalDateTime.of(2023, Month.JANUARY, 1, 8, 0), "0110", false, false, 1, 1, 1.0, 1.0),
-                new Crime(5, LocalDateTime.of(2023, Month.FEBRUARY, 1, 8, 0), "0110", true, false, 1, 1, 1.0, 1.0),
-                new Crime(6, LocalDateTime.of(2023, Month.MARCH, 1, 8, 0), "0141", false, true, 1, 1, 1.0, 1.0),
-                new Crime(7, LocalDateTime.of(2023, Month.MARCH, 2, 0, 0), "0141", false, true, 1, 1, 1.0, 1.0),
-                new Crime(8, LocalDateTime.of(2023, Month.APRIL, 9, 0, 0), "0141", false, false, 1, 1, 1.0, 1.0),
-                new Crime(9, LocalDateTime.of(2023, Month.APRIL, 9, 0, 0), "0141", false, false, 1, 1, 1.0, 1.0),
-                new Crime(10, LocalDateTime.of(2023, Month.APRIL, 9, 0, 0), "0141", false, false, 1, 1, 1.0, 1.0),
-                new Crime(11, LocalDateTime.of(2023, Month.APRIL, 10, 0, 0), "0110", false, false, 1, 1, 1.0, 1.0),
-                new Crime(12, LocalDateTime.of(2023, Month.APRIL, 13, 0, 0), "0110", false, false, 1, 1, 1.0, 1.0),
-                new Crime(13, LocalDateTime.of(2023, Month.APRIL, 17, 12, 0), "0141", false, false, 1, 1, 1.0, 1.0),
-                new Crime(14, LocalDateTime.of(2023, Month.APRIL, 16, 13, 0), "0141", false, false, 1, 1, 1.0, 1.0),
-                new Crime(15, LocalDateTime.of(2023, Month.APRIL, 18, 0, 0), "0110", false, false, 1, 1, 1.0, 1.0)
-        );
+        DataStream<Crime> crimesSource = env.fromSource(Connectors.getCrimesSource(properties), WatermarkStrategy.noWatermarks(), "Crimes Source");
         DataStream<IucrCode> iucrSource = env.fromSource(Connectors.getIucrSource(properties), WatermarkStrategy.noWatermarks(), "Iucr Source");
 
         BroadcastStream<IucrCode> iucrCodeBroadcastStream = iucrSource.broadcast(iucrCodeStateDescriptor);
@@ -80,8 +60,7 @@ public class Main {
                 .map(CrimeAggregate::fromCrimeFbi)
                 .keyBy(crimeFbi -> Tuple2.of(crimeFbi.getPrimaryDescription(), crimeFbi.getDistrict()),
                         TupleTypeInfo.getBasicAndBasicValueTupleTypeInfo(String.class, Integer.class))
-                .window(new MonthTumblingEventTimeWindows())
-                .trigger(new EveryEventTimeTrigger()) // not commented = delay = A, commented = delay = C
+                .window(new MonthTumblingEventTimeWindows(properties.get(Parameters.FLINK_DELAY, "A")))
                 .reduce((crime1, crime2) -> {
                     CrimeAggregate crimeAggregate = new CrimeAggregate();
                     crimeAggregate.setMonth(crime1.getMonth());
@@ -97,7 +76,7 @@ public class Main {
         DataStream<String> anomalyOutput = crimeFbiStream
                 .map(CrimeAnomalyAggregate::fromCrimeFbi)
                 .keyBy(CrimeAnomalyAggregate::getDistrict)
-                .window(SlidingEventTimeWindows.of(Time.days(7), Time.days(1)))
+                .window(SlidingEventTimeWindows.of(Time.days(properties.getInt(Parameters.FLINK_ANOMALY_PERIOD)), Time.days(1)))
                 .reduce((crime1, crime2) -> {
                     CrimeAnomalyAggregate crimeAnomalyAggregate = new CrimeAnomalyAggregate();
                     crimeAnomalyAggregate.setDistrict(crime1.getDistrict());
@@ -112,7 +91,7 @@ public class Main {
                         out.collect(value);
                     }
                 })
-                .filter(crimeAnomalyResult -> crimeAnomalyResult.getPercentageMonitoredByFbi() > 0.4)
+                .filter(crimeAnomalyResult -> crimeAnomalyResult.getPercentageMonitoredByFbi() > properties.getDouble(Parameters.FLINK_ANOMALY_THRESHOLD))
                 .map(CrimeAnomalyResult::toString);
 
         Connectors.getCassandraAggSink(aggOutput, properties);

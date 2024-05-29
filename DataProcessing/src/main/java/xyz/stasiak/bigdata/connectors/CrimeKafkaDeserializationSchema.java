@@ -29,9 +29,6 @@ public class CrimeKafkaDeserializationSchema implements KafkaRecordDeserializati
         crime.setArrest(Boolean.parseBoolean(values[3]));
         crime.setDomestic(Boolean.parseBoolean(values[4]));
         crime.setDistrict(Math.round(Float.parseFloat(values[5])));
-        crime.setCommunityArea(Math.round(Float.parseFloat(values[6])));
-        crime.setLatitude(Double.parseDouble(values[7]));
-        crime.setLongitude(Double.parseDouble(values[8]));
         out.collect(crime);
     }
 

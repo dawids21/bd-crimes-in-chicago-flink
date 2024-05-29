@@ -17,7 +17,4 @@ public class Crime implements Serializable {
     private boolean arrest;
     private boolean domestic;
     private int district;
-    private int communityArea;
-    private double latitude;
-    private double longitude;
 }

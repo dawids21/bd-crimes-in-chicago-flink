@@ -17,23 +17,18 @@ public class CrimeFbi implements Serializable {
     private boolean arrest;
     private boolean domestic;
     private int district;
-    private int communityArea;
-    private double latitude;
-    private double longitude;
     private String primaryDescription;
     private boolean monitoredByFbi;
 
     public static CrimeFbi fromCrime(Crime crime) {
         return new CrimeFbi(crime.getId(), crime.getDate(), crime.getIucrCode(),
                 crime.isArrest(), crime.isDomestic(), crime.getDistrict(),
-                crime.getCommunityArea(), crime.getLatitude(), crime.getLongitude(),
                 "", false);
     }
 
     public static CrimeFbi fromCrime(Crime crime, IucrCode iucrCode) {
         return new CrimeFbi(crime.getId(), crime.getDate(), crime.getIucrCode(),
                 crime.isArrest(), crime.isDomestic(), crime.getDistrict(),
-                crime.getCommunityArea(), crime.getLatitude(), crime.getLongitude(),
                 iucrCode.getPrimaryDescription(), iucrCode.isMonitoredByFbi());
     }
 }
