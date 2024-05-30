@@ -9,6 +9,7 @@ import org.apache.flink.connector.kafka.source.KafkaSource;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.cassandra.CassandraSink;
+import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import xyz.stasiak.bigdata.Parameters;
 import xyz.stasiak.bigdata.model.Crime;
 import xyz.stasiak.bigdata.model.CrimeAggregate;
@@ -20,7 +21,7 @@ public class Connectors {
                 .setBootstrapServers(properties.get(Parameters.BOOTSTRAP_SERVERS))
                 .setTopics(properties.get(Parameters.CRIMES_INPUT_TOPIC))
                 .setGroupId(properties.get(Parameters.KAFKA_GROUP_ID))
-                .setStartingOffsets(OffsetsInitializer.earliest())
+                .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
                 .setDeserializer(new CrimeKafkaDeserializationSchema())
                 .build();
     }

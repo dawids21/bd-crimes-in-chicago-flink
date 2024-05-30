@@ -1,10 +1,14 @@
 #!/bin/bash
 source ./vars.sh
 
+echo "Killing yarn applications"
+yarn application --list | awk '{print $1}' | grep application | xargs yarn application -kill
+
 echo "Cleaning up"
 rm -rf "$INPUT_FILE"
 rm -rf "$INPUT_DIR"
 rm -rf "$INPUT_DIR.zip"
+hadoop fs -rm -r -f "$FLINK_CHECKPOINT_DIR"
 
 echo "Copying input files from GCS"
 hadoop fs -copyToLocal gs://"${BUCKET_NAME}"/Chicago_Police_Department_-_Illinois_Uniform_Crime_Reporting__IUCR__Codes.csv "$INPUT_FILE" || exit
@@ -38,7 +42,6 @@ docker compose down
 docker compose up -d --wait
 
 echo "Preparing cassandra schema"
-docker exec -it cassandra cqlsh -e "TRUNCATE crime_data.crime_aggregate;"
 docker exec -it cassandra cqlsh -e "CREATE KEYSPACE IF NOT EXISTS crime_data WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1};
                                     USE crime_data;
                                     CREATE TABLE IF NOT EXISTS crime_aggregate
@@ -51,4 +54,7 @@ docker exec -it cassandra cqlsh -e "CREATE KEYSPACE IF NOT EXISTS crime_data WIT
                                         count_domestic         BIGINT,
                                         count_monitored_by_fbi BIGINT,
                                         PRIMARY KEY ((district), month, primary_description)
-                                    );"
+                                    );
+                                    TRUNCATE crime_data.crime_aggregate;"
+
+echo "Reset complete"

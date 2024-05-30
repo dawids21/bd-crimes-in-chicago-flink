@@ -28,7 +28,11 @@ public class CrimeKafkaDeserializationSchema implements KafkaRecordDeserializati
         crime.setIucrCode(values[2]);
         crime.setArrest(Boolean.parseBoolean(values[3]));
         crime.setDomestic(Boolean.parseBoolean(values[4]));
-        crime.setDistrict(Math.round(Float.parseFloat(values[5])));
+        if ("\"\"".equals(values[5])) {
+            crime.setDistrict(0);
+        } else {
+            crime.setDistrict(Math.round(Float.parseFloat(values[5])));
+        }
         out.collect(crime);
     }
 

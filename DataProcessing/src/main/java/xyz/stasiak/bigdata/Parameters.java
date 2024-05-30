@@ -11,4 +11,5 @@ public interface Parameters {
     String FLINK_ANOMALY_THRESHOLD = "flink-anomaly-threshold";
     String CASSANDRA_HOST = "cassandra-host";
     String CASSANDRA_PORT = "cassandra-port";
+    String FLINK_CHECKPOINT_DIR = "flink-checkpoint-dir";
 }

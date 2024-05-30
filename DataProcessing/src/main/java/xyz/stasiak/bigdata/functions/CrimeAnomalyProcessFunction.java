@@ -22,7 +22,7 @@ public class CrimeAnomalyProcessFunction extends ProcessWindowFunction<CrimeAnom
                         anomaly.getDistrict(),
                         anomaly.getCount(),
                         anomaly.getCountMonitoredByFbi(),
-                        anomaly.getCountMonitoredByFbi() / (double) anomaly.getCount()
+                        anomaly.getCountMonitoredByFbi() / (double) anomaly.getCount() * 100.0
                 )
         ));
     }

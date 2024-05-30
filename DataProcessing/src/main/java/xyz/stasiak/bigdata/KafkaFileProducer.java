@@ -9,17 +9,24 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public class KafkaFileProducer {
     public static void main(String[] args) {
-        if (args.length < 3) {
+        if (args.length < 4) {
             System.out.println("Usage: KafkaFileProducer <inputDir> <topicName> <bootstrapServers>");
             System.exit(1);
         }
         String inputDir = args[0];
         String topicName = args[1];
         String bootstrapServers = args[2];
+        int sleepTime;
+        try {
+            sleepTime = Integer.parseInt(args[3]);
+        } catch (NumberFormatException e) {
+            sleepTime = 1000;
+        }
 
         Properties props = new Properties();
         props.put("bootstrap.servers", bootstrapServers);
@@ -46,7 +53,9 @@ public class KafkaFileProducer {
         for (final String fileName : listOfPaths) {
             try (Stream<String> stream = Files.lines(Paths.get(fileName)).skip(1)) {
                 stream.forEach(line -> producer.send(parseLine(topicName, line)));
-            } catch (IOException e) {
+                System.out.println("File " + fileName + " sent to Kafka");
+                TimeUnit.SECONDS.sleep(sleepTime);
+            } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
             }
         }

@@ -11,10 +11,12 @@ export IUCR_INPUT_TOPIC="iucr-input"
 export ANOMALY_OUTPUT_TOPIC="anomaly-output"
 export BOOTSTRAP_SERVERS="$CLUSTER_NAME-w-0:9092"
 export KAFKA_GROUP_ID="flink-crimes-chicago"
+export KAFKA_SLEEP_TIME=2
 
 export HADOOP_CONF_DIR="/etc/hadoop/conf"
 export HADOOP_CLASSPATH=$(hadoop classpath)
 
-export FLINK_DELAY="A"
-export FLINK_ANOMALY_PERIOD=7
-export FLINK_ANOMALY_THRESHOLD=0.1
+export FLINK_CHECKPOINT_DIR="hdfs:///tmp/flink-checkpoints"
+export FLINK_DELAY="C"
+export FLINK_ANOMALY_PERIOD=30
+export FLINK_ANOMALY_THRESHOLD=60
