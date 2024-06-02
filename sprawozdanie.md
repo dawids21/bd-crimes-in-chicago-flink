@@ -19,11 +19,12 @@
     unzip projekt2.zip
     chmod +x *.sh
     ```
-6. Uruchom skrypt `./reset.sh` w celu zresetowania środowiska
+6. W pliku `vars.sh` ustaw nazwę swojego bucketa w zmiennej `BUCKET_NAME`.
+7. Uruchom skrypt `./reset.sh` w celu zresetowania środowiska
    ![Wynik skryptu resetującego](wynik-skryptu-resetujacego.png)
-7. Uruchom skrypt `./produce.sh` w celu rozpoczęcia generowania danych
+8. Uruchom skrypt `./produce.sh` w celu rozpoczęcia generowania danych
 
-## Utrzymywanie obrazu czasu rzeczywistego - transformacje
+## Utrzymywanie obrazu czasu rzeczywistego — transformacje
 
 Na początku dane otrzymywane z tematów Kafki są deserializowane za pomocą klas `CrimeKafkaDeserializationSchema` oraz
 `IucrCodeKafkaDeserializationSchema`:
@@ -69,7 +70,7 @@ BroadcastStream<IucrCode> iucrCodeBroadcastStream = iucrSource.broadcast(iucrCod
 ```
 
 Następnie, aby uniknąć sytuacji, gdzie zdarzenia na temat przestępstw są przetwarzana przed danymi na temat kodów
-wykorzystywane jest `ControlFunction`, która buforuje zdarzenia dotyczące danego kodu, dopóki nie zostaną przetwarzone
+wykorzystywane jest `ControlFunction`, która buforuje zdarzenia dotyczące danego kodu, dopóki nie zostaną przetworzone
 dane na jego temat. Po zakończeniu tej funkcji obiekty reprezentujące przestępstwa są wzbogacane o informacje na temat
 kategorii przestępstwa oraz tego, czy jest ono monitorowane przez FBI. Dodatkowo na tym etapie są przypisywane znaczniki
 czasowe oraz watermarki.
@@ -132,7 +133,7 @@ public Collection<TimeWindow> assignWindows(Object element, long timestamp, Wind
 Wyniki agregacji są przekazywane do ujścia będącego bazą danych Cassandra:
 
 ```java
-public static CassandraSink<CrimeAggregate> getCassandraAggSink(DataStream<CrimeAggregate> input, ParameterTool properties) throws Exception {
+public static CassandraSink<CrimeAggregate> getCassandraAggSink(DataStream<CrimeAggregate> input, ParameterTool properties) {
     return CassandraSink.addSink(input)
             .setHost(properties.get(Parameters.CASSANDRA_HOST), properties.getInt(Parameters.CASSANDRA_PORT, 9042))
             .build();
@@ -163,7 +164,7 @@ public class CrimeAggregate {
 ## Utrzymanie obrazu czasu rzeczywistego – obsługa trybu A
 
 Obsługa tego trybu polega na wykorzystaniu wyzwalacza natychmiastowego powtarzalnej aktualizacji. Domyślnie we Flinku
-przy użyciu okien jest wykorzystywany wyzwalacz kompletności zatem w celu jego zmiany został wykorzystana
+przy użyciu okien jest wykorzystywany wyzwalacz kompletności zatem w celu jego zmiany została wykorzystana
 metoda `getDefaultTrigger` w klasie `MonthTumblingEventTimeWindows`:
 
 ```java 
@@ -193,6 +194,68 @@ użyciu okien: `EventTimeTrigger`.
 
 ## Wykrywanie anomalii
 
+Wykorzystując te same dane, które są przetwarzane w ramach utrzymania obrazu czasu rzeczywistego, została
+zaimplementowana detekcja anomalii.
+W tym przypadku dane są grupowane na podstawie dzielnicy, a następnie wykorzystując standardowe
+okno `SlindingEventTimeWindows` dane są agregowane oraz filtrowane na podstawie procentu przestępstw monitorowanych
+przez FBI.
+
+```java
+double anomalyThreshold = properties.getDouble(Parameters.FLINK_ANOMALY_THRESHOLD, 60);
+DataStream<String> anomalyOutput = crimeFbiStream
+        .map(CrimeAnomalyAggregate::fromCrimeFbi)
+        .keyBy(CrimeAnomalyAggregate::getDistrict)
+        .window(SlidingEventTimeWindows.of(Time.days(properties.getInt(Parameters.FLINK_ANOMALY_PERIOD, 30)), Time.days(1)))
+        .reduce((crime1, crime2) -> {
+            CrimeAnomalyAggregate crimeAnomalyAggregate = new CrimeAnomalyAggregate();
+            crimeAnomalyAggregate.setDistrict(crime1.getDistrict());
+            crimeAnomalyAggregate.setCount(crime1.getCount() + crime2.getCount());
+            crimeAnomalyAggregate.setCountMonitoredByFbi(crime1.getCountMonitoredByFbi() + crime2.getCountMonitoredByFbi());
+            return crimeAnomalyAggregate;
+        }, new CrimeAnomalyProcessFunction())
+        .filter(crimeAnomalyResult -> crimeAnomalyResult.getPercentageMonitoredByFbi() > anomalyThreshold)
+        .map(CrimeAnomalyResult::toString);
+```
+
+Dodatkowo w celu zawarcie informacji o początku i końcu okna, wynik agregacji jest przetwarzany za pomocą
+funkcji `CrimeAnomalyProcessFunction`:
+
+```java
+
+@Override
+public void process(Integer district,
+                    ProcessWindowFunction<CrimeAnomalyAggregate, CrimeAnomalyResult, Integer, TimeWindow>.Context context,
+                    Iterable<CrimeAnomalyAggregate> elements,
+                    Collector<CrimeAnomalyResult> out) {
+    elements.forEach(anomaly -> out.collect(
+            new CrimeAnomalyResult(
+                    Instant.ofEpochMilli(context.window().getStart()).atOffset(ZoneOffset.UTC).toLocalDateTime(),
+                    Instant.ofEpochMilli(context.window().getEnd()).atOffset(ZoneOffset.UTC).toLocalDateTime(),
+                    anomaly.getDistrict(),
+                    anomaly.getCount(),
+                    anomaly.getCountMonitoredByFbi(),
+                    anomaly.getCountMonitoredByFbi() / (double) anomaly.getCount() * 100.0
+            )
+    ));
+}
+```
+
+Jako ujście został wykorzystany temat Kafki:
+
+```java
+public static KafkaSink<String> getAnomalySink(ParameterTool properties) {
+    return KafkaSink.<String>builder()
+            .setBootstrapServers(properties.get(Parameters.BOOTSTRAP_SERVERS))
+            .setRecordSerializer(KafkaRecordSerializationSchema.builder()
+                    .setTopic(properties.get(Parameters.ANOMALY_OUTPUT_TOPIC))
+                    .setValueSerializationSchema(new SimpleStringSchema())
+                    .build()
+            )
+            .setDeliverGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+            .build();
+}
+```
+
 ## Program przetwarzający strumienie danych; skrypt uruchamiający
 
 W celu uruchomienia przetwarzania należy wykonać skrypt `./run.sh` w jednym z terminali. Skrypt ten można parametryzować
@@ -221,3 +284,83 @@ pierwszym argumentem jest nazwa katalogu z punktem kontrolnym. Katalog ten możn
 pomocą `hadoop fs -ls /tmp/flink-checkpoints`). Jako argument trzeba przekazać pełną ścieżkę do katalogu `chk-XXX` np.
 `hdfs:///tmp/flink-checkpoints/abcd1234/chk-100`.
 
+## Miejsce utrzymywania obrazów czasu rzeczywistego – skrypt tworzący
+
+Miejscem utrzymywania obrazów czasu rzeczywistego jest baza danych Cassandra. Kontener z bazą danych jest uruchamiany
+za pomocą `Docker Compose`:
+
+```yaml
+services:
+  cassandra:
+    image: cassandra:latest
+    container_name: cassandra
+    ports:
+      - "9042:9042"
+    environment:
+      - CASSANDRA_USER=admin
+      - CASSANDRA_PASSWORD=admin
+    healthcheck:
+      test: [ "CMD", "cqlsh", "-u cassandra", "-p cassandra" ,"-e describe keyspaces" ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+```
+
+A następnie w trakcie wykonywania skryptu `reset.sh` tworzona jest przestrzeń kluczy oraz tabela:
+
+```shell
+echo "Preparing cassandra schema"
+docker exec -it cassandra cqlsh -e "CREATE KEYSPACE IF NOT EXISTS crime_data WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1};
+                                    USE crime_data;
+                                    CREATE TABLE IF NOT EXISTS crime_aggregate
+                                    (
+                                        district               INT,
+                                        month                  INT,
+                                        primary_description    TEXT,
+                                        count                  BIGINT,
+                                        count_arrest           BIGINT,
+                                        count_domestic         BIGINT,
+                                        count_monitored_by_fbi BIGINT,
+                                        PRIMARY KEY ((district), month, primary_description)
+                                    );
+                                    TRUNCATE crime_data.crime_aggregate;"
+```
+
+## Miejsce utrzymywania obrazów czasu rzeczywistego – cechy
+
+Powody, dla których została wybrana baza danych Cassandra:
+
+- konektor — Cassandra posiada konektor do Flinka, co pozwala na łatwe przesyłanie danych z jednego do drugiego
+- skalowalność — Cassandra jest bazą danych NoSQL, która pozwala na łatwe skalowanie w górę i w dół, dzięki czemu może
+  się ona dostosować do aktualnych potrzeb aplikacji
+- wydajność — Cassandra jest zoptymalizowana pod kątem zapisów, co pozwala na szybkie
+  przetwarzanie danych w czasie rzeczywistym, które są często aktualizowane
+- odporność na awarie — Cassandra jest odporna na awarie, co pozwala na bezpieczne przechowywanie danych w przypadku
+  problemów z infrastrukturą
+
+## Konsument: skrypt odczytujący wyniki przetwarzania
+
+### Obraz czasu rzeczywistego
+
+W celu odczytania danych z obrazu czasu rzeczywistego należy wykonać skrypt `./consume-agg.sh`, który odczytuje dane z
+bazy danych Cassandra. Można także skorzystać z następującej komendy w celu wykonania dodatkowego filtrowania danych:
+
+```shell
+docker exec -it cassandra cqlsh -e "SELECT * FROM crime_data.crime_aggregate WHERE ...;"
+```
+
+### Detekcja anomalii
+
+Należy odczytać dane z odpowiedniego tematu Kafki, do czego można wykorzystać skrypt `./consume-anomaly.sh` o
+następującej zawartości:
+
+```shell
+#!/bin/bash
+source ./vars.sh
+/usr/lib/kafka/bin/kafka-console-consumer.sh \
+    --bootstrap-server "$BOOTSTRAP_SERVERS" \
+    --topic "$ANOMALY_OUTPUT_TOPIC" \
+    --formatter kafka.tools.DefaultMessageFormatter \
+    --property print.value=true \
+    --property value.deserializer=org.apache.kafka.common.serialization.StringDeserializer
+```

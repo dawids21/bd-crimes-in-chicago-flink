@@ -1,6 +1,6 @@
 #!/bin/bash
 export CLUSTER_NAME=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
-export BUCKET_NAME="bigdata-23-ds"
+export BUCKET_NAME=""
 export INPUT_DIR="/tmp/crimes-input"
 export INPUT_FILE="/tmp/iucr.csv"
 export CASSANDRA_HOST="$CLUSTER_NAME-m"
