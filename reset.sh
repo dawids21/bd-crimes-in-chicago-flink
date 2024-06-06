@@ -2,7 +2,12 @@
 source ./vars.sh
 
 echo "Killing yarn applications"
-yarn application --list | awk '{print $1}' | grep application | xargs yarn application -kill
+applications=$(yarn application --list | awk '{print $1}' | grep application)
+if [ -z "$applications" ]; then
+    echo "No yarn applications to kill"
+else
+    yarn application --list | awk '{print $1}' | grep application | xargs yarn application -kill
+fi
 
 echo "Cleaning up"
 rm -rf "$INPUT_FILE"

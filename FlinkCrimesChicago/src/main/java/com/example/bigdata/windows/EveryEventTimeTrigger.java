@@ -1,4 +1,4 @@
-package xyz.stasiak.bigdata.windows;
+package com.example.bigdata.windows;
 
 import org.apache.flink.streaming.api.windowing.triggers.Trigger;
 import org.apache.flink.streaming.api.windowing.triggers.TriggerResult;

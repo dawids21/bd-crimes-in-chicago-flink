@@ -1,4 +1,4 @@
-package xyz.stasiak.bigdata.model;
+package com.example.bigdata.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

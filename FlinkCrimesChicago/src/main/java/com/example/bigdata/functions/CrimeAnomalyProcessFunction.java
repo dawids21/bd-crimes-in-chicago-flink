@@ -1,10 +1,10 @@
-package xyz.stasiak.bigdata.functions;
+package com.example.bigdata.functions;
 
+import com.example.bigdata.model.CrimeAnomalyAggregate;
+import com.example.bigdata.model.CrimeAnomalyResult;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
-import xyz.stasiak.bigdata.model.CrimeAnomalyAggregate;
-import xyz.stasiak.bigdata.model.CrimeAnomalyResult;
 
 import java.time.Instant;
 import java.time.ZoneOffset;

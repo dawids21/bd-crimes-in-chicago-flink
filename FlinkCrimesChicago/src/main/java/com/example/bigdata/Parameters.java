@@ -1,4 +1,4 @@
-package xyz.stasiak.bigdata;
+package com.example.bigdata;
 
 public interface Parameters {
     String BOOTSTRAP_SERVERS = "bootstrap-servers";

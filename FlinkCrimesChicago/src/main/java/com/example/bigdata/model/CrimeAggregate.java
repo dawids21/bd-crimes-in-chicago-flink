@@ -1,4 +1,4 @@
-package xyz.stasiak.bigdata.model;
+package com.example.bigdata.model;
 
 import com.datastax.driver.mapping.annotations.Column;
 import com.datastax.driver.mapping.annotations.Table;

@@ -1,3 +1,5 @@
+# Zestaw danych 3-Crimes-in-Chicago, Platforma Flink
+
 ## Producent; skrypty inicjujące i zasilające
 
 1. Uruchom cluster za pomocą komendy:
@@ -19,10 +21,10 @@
     unzip projekt2.zip
     chmod +x *.sh
     ```
-6. W pliku `vars.sh` ustaw nazwę swojego bucketa w zmiennej `BUCKET_NAME`.
+6. W pliku `vars.sh` ustaw nazwę swojego bucketa w zmiennej `BUCKET_NAME` za pomocą komendy `nano vars.sh`.
 7. Uruchom skrypt `./reset.sh` w celu zresetowania środowiska
    ![Wynik skryptu resetującego](wynik-skryptu-resetujacego.png)
-8. Uruchom skrypt `./produce.sh` w celu rozpoczęcia generowania danych
+8. W innym terminalu uruchom skrypt `./produce.sh` w celu rozpoczęcia generowania danych
 
 ## Utrzymywanie obrazu czasu rzeczywistego — transformacje
 
@@ -258,13 +260,16 @@ public static KafkaSink<String> getAnomalySink(ParameterTool properties) {
 
 ## Program przetwarzający strumienie danych; skrypt uruchamiający
 
-W celu uruchomienia przetwarzania należy wykonać skrypt `./run.sh` w jednym z terminali. Skrypt ten można parametryzować
+W celu uruchomienia przetwarzania w nowym terminalu należy wykonać skrypt `./run.sh` w jednym z terminali. Skrypt ten
+można parametryzować
 za pomocą flag:
 
 - `--flink-delay` - tryb obsługi utrzymania obrazy czasu rzeczywistego (domyślnie `C`, możliwe `A` lub `C`)
 - `--flink-anomaly-period` - długość okresu przy detekcji anomalii, wyrażona w dniach (domyślnie `30`)
 - `--flink-anomaly-threshold` - minimalny próg przestępstw rejestrowanych przez FBI przy detekcji anomalii, wyrażony w
   procentach (domyślnie `60`)
+
+Po uruchomieniu wyświetlane jest jakie parametry zostały wykorzystane.
 
 ### Przykładowe uruchomienie
 
@@ -343,7 +348,9 @@ Powody, dla których została wybrana baza danych Cassandra:
 ### Obraz czasu rzeczywistego
 
 W celu odczytania danych z obrazu czasu rzeczywistego należy wykonać skrypt `./consume-agg.sh`, który odczytuje dane z
-bazy danych Cassandra. Można także skorzystać z następującej komendy w celu wykonania dodatkowego filtrowania danych:
+bazy danych Cassandra. Dane są wyświetlane w
+formacie: `district | month | primary_description | count | count_arrest | count_domestic | count_monitored_by_fbi`.
+Można także skorzystać z następującej komendy w celu wykonania dodatkowego filtrowania danych:
 
 ```shell
 docker exec -it cassandra cqlsh -e "SELECT * FROM crime_data.crime_aggregate WHERE ...;"

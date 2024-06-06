@@ -6,7 +6,7 @@ shift
 
 flink run -m yarn-cluster -p 2 \
    -yjm 1024m -ytm 1024m -c \
-   xyz.stasiak.bigdata.Main \
+   com.example.bigdata.Main \
    -s $CHECKPOINT FlinkCrimesChicago.jar \
     --crimes-input-topic "$CRIMES_INPUT_TOPIC" \
     --iucr-input-topic "$IUCR_INPUT_TOPIC" \

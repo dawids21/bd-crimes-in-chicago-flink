@@ -1,13 +1,13 @@
-package xyz.stasiak.bigdata.functions;
+package com.example.bigdata.functions;
 
+import com.example.bigdata.model.Crime;
+import com.example.bigdata.model.CrimeFbi;
+import com.example.bigdata.model.IucrCode;
 import org.apache.flink.api.common.state.BroadcastState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.util.Collector;
-import xyz.stasiak.bigdata.model.Crime;
-import xyz.stasiak.bigdata.model.CrimeFbi;
-import xyz.stasiak.bigdata.model.IucrCode;
 
 public class CrimeFbiEnrichmentFunction extends BroadcastProcessFunction<Crime, IucrCode, CrimeFbi> {
 

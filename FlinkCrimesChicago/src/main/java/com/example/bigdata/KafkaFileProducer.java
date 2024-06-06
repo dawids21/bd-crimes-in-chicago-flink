@@ -1,4 +1,4 @@
-package xyz.stasiak.bigdata;
+package com.example.bigdata;
 
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;

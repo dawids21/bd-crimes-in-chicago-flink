@@ -1,10 +1,10 @@
-package xyz.stasiak.bigdata.connectors;
+package com.example.bigdata.connectors;
 
+import com.example.bigdata.model.IucrCode;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.util.Collector;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import xyz.stasiak.bigdata.model.IucrCode;
 
 public class IucrCodeKafkaDeserializationSchema implements KafkaRecordDeserializationSchema<IucrCode> {
     @Override

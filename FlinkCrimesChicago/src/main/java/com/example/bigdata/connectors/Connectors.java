@@ -1,5 +1,9 @@
-package xyz.stasiak.bigdata.connectors;
+package com.example.bigdata.connectors;
 
+import com.example.bigdata.Parameters;
+import com.example.bigdata.model.Crime;
+import com.example.bigdata.model.CrimeAggregate;
+import com.example.bigdata.model.IucrCode;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.base.DeliveryGuarantee;
@@ -10,10 +14,6 @@ import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsIni
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.connectors.cassandra.CassandraSink;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
-import xyz.stasiak.bigdata.Parameters;
-import xyz.stasiak.bigdata.model.Crime;
-import xyz.stasiak.bigdata.model.CrimeAggregate;
-import xyz.stasiak.bigdata.model.IucrCode;
 
 public class Connectors {
     public static KafkaSource<Crime> getCrimesSource(ParameterTool properties) {

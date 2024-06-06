@@ -1,4 +1,4 @@
-package xyz.stasiak.bigdata.windows;
+package com.example.bigdata.windows;
 
 import lombok.AllArgsConstructor;
 import org.apache.flink.api.common.ExecutionConfig;

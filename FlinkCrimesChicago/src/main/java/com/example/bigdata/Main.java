@@ -1,5 +1,11 @@
-package xyz.stasiak.bigdata;
+package com.example.bigdata;
 
+import com.example.bigdata.connectors.Connectors;
+import com.example.bigdata.functions.ControlFunction;
+import com.example.bigdata.functions.CrimeAnomalyProcessFunction;
+import com.example.bigdata.functions.CrimeFbiEnrichmentFunction;
+import com.example.bigdata.model.*;
+import com.example.bigdata.windows.MonthTumblingEventTimeWindows;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -14,12 +20,6 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import xyz.stasiak.bigdata.connectors.Connectors;
-import xyz.stasiak.bigdata.functions.ControlFunction;
-import xyz.stasiak.bigdata.functions.CrimeAnomalyProcessFunction;
-import xyz.stasiak.bigdata.functions.CrimeFbiEnrichmentFunction;
-import xyz.stasiak.bigdata.model.*;
-import xyz.stasiak.bigdata.windows.MonthTumblingEventTimeWindows;
 
 import java.time.Duration;
 import java.time.ZoneOffset;
@@ -40,7 +40,7 @@ public class Main {
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 10000));
-        env.enableCheckpointing(2000, CheckpointingMode.EXACTLY_ONCE);
+        env.enableCheckpointing(10000, CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setCheckpointTimeout(60000);
         if (properties.has(Parameters.FLINK_CHECKPOINT_DIR)) {
             env.getCheckpointConfig().setCheckpointStorage(properties.get(Parameters.FLINK_CHECKPOINT_DIR));

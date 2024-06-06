@@ -1,5 +1,7 @@
-package xyz.stasiak.bigdata.functions;
+package com.example.bigdata.functions;
 
+import com.example.bigdata.model.Crime;
+import com.example.bigdata.model.IucrCode;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
@@ -7,8 +9,6 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.co.RichCoFlatMapFunction;
 import org.apache.flink.util.Collector;
-import xyz.stasiak.bigdata.model.Crime;
-import xyz.stasiak.bigdata.model.IucrCode;
 
 public class ControlFunction extends RichCoFlatMapFunction<Crime, IucrCode, Crime> {
 
