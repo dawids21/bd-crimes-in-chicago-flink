@@ -30,6 +30,7 @@ public class MonthTumblingEventTimeWindows extends WindowAssigner<Object, TimeWi
         long startMilli = start.toEpochSecond(ZoneOffset.UTC) * 1000;
         LocalDateTime end = start.plusMonths(1);
         long endMilli = end.toEpochSecond(ZoneOffset.UTC) * 1000;
+        System.out.println("For timestamp " + timestamp + " assigning window [" + startMilli + ", " + endMilli + "]");
         return Collections.singletonList(new TimeWindow(startMilli, endMilli));
     }
 

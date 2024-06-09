@@ -28,8 +28,7 @@
 
 ## Utrzymywanie obrazu czasu rzeczywistego — transformacje
 
-Na początku dane otrzymywane z tematów Kafki są deserializowane za pomocą klas `CrimeKafkaDeserializationSchema` oraz
-`IucrCodeKafkaDeserializationSchema`:
+Na początku dane otrzymywane z tematów Kafki są deserializowane za pomocą klas `CrimeKafkaDeserializationSchema`:
 
 ```java
 
@@ -51,43 +50,57 @@ public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<Crime> 
 }
 ```
 
-```java
+Przypisywane są także znaczniki czasowe oraz watermarki:
 
-@Override
-public void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<IucrCode> out) {
-    IucrCode iucrCode = new IucrCode();
-    iucrCode.setCode(getCode(new String(record.key())));
-    String[] values = new String(record.value()).split(",");
-    iucrCode.setPrimaryDescription(values[1]);
-    iucrCode.setSecondaryDescription(values[2]);
-    iucrCode.setMonitoredByFbi("I".equals(values[3]));
-    out.collect(iucrCode);
+```java
+DataStream<Crime> crimesSource = env.fromSource(
+    Connectors.getCrimesSource(properties),
+    WatermarkStrategy
+            .<Crime>forBoundedOutOfOrderness(Duration.ofDays(1))
+            .withTimestampAssigner((event, timestamp) -> event.getDate().toEpochSecond(ZoneOffset.UTC) * 1000), 
+    "Crimes Source"
+);
+```
+
+Plik z danymi na temat kodów IUCR jest przechowywany w rozproszonym cache'u, który jest dostępny dla wszystkich.
+
+```java
+if (!Paths.get(properties.get(Parameters.IUCR_INPUT_FILE)).toFile().exists()) {
+    throw new IllegalArgumentException("IUCR input file does not exist");
 }
+env.registerCachedFile(properties.get(Parameters.IUCR_INPUT_FILE), IUCR_INPUT);
 ```
 
-Dane na temat kodów IUCR są broadcastowane, dzięki czemu są przesyłane do każdego task managera.
-
-```java
-BroadcastStream<IucrCode> iucrCodeBroadcastStream = iucrSource.broadcast(iucrCodeStateDescriptor);
-```
-
-Następnie, aby uniknąć sytuacji, gdzie zdarzenia na temat przestępstw są przetwarzana przed danymi na temat kodów
-wykorzystywane jest `ControlFunction`, która buforuje zdarzenia dotyczące danego kodu, dopóki nie zostaną przetworzone
-dane na jego temat. Po zakończeniu tej funkcji obiekty reprezentujące przestępstwa są wzbogacane o informacje na temat
-kategorii przestępstwa oraz tego, czy jest ono monitorowane przez FBI. Dodatkowo na tym etapie są przypisywane znaczniki
-czasowe oraz watermarki.
+Po zakończeniu tej funkcji obiekty reprezentujące przestępstwa są wzbogacane o informacje na temat
+kategorii przestępstwa oraz tego, czy jest ono monitorowane przez FBI.
 
 ```java
 DataStream<CrimeFbi> crimeFbiStream = crimesSource
-        .connect(iucrSource)
-        .keyBy(Crime::getIucrCode, IucrCode::getCode)
-        .flatMap(new ControlFunction())
-        .connect(iucrCodeBroadcastStream)
-        .process(new CrimeFbiEnrichmentFunction(iucrCodeStateDescriptor))
-        .assignTimestampsAndWatermarks(
-                WatermarkStrategy
-                        .<CrimeFbi>forBoundedOutOfOrderness(Duration.ofDays(1))
-                        .withTimestampAssigner((event, timestamp) -> event.getDate().toEpochSecond(ZoneOffset.UTC) * 1000));
+        .map(new CrimeFbiEnrichmentFunction(IUCR_INPUT));
+```
+
+```java
+@Override
+public void open(Configuration parameters) throws Exception {
+    File file = getRuntimeContext().getDistributedCache().getFile(iucrCodeFile);
+
+    try (Stream<String> lines = Files.lines(file.toPath(), StandardCharsets.UTF_8)) {
+        iucrCodeMap = lines.filter(s -> !s.startsWith("IUCR"))
+                .map(IucrCode::fromString)
+                .collect(Collectors.toMap(IucrCode::getCode, iucrCode -> iucrCode));
+    }
+}
+
+@Override
+public CrimeFbi map(Crime value) {
+    CrimeFbi crimeFbi;
+    if (iucrCodeMap.containsKey(value.getIucrCode())) {
+        crimeFbi = CrimeFbi.fromCrime(value, iucrCodeMap.get(value.getIucrCode()));
+    } else {
+        crimeFbi = CrimeFbi.fromCrime(value);
+    }
+    return crimeFbi;
+}
 ```
 
 Kolejnym etapem jest funkcja agregująca, która zlicza odpowiednie dane na podstawie klucza składającego się z głównej
@@ -269,7 +282,7 @@ za pomocą flag:
 - `--flink-anomaly-threshold` - minimalny próg przestępstw rejestrowanych przez FBI przy detekcji anomalii, wyrażony w
   procentach (domyślnie `60`)
 
-Po uruchomieniu wyświetlane jest jakie parametry zostały wykorzystane.
+Po uruchomieniu wyświetlane jest, jakie parametry zostały wykorzystane.
 
 ### Przykładowe uruchomienie
 
@@ -367,6 +380,7 @@ source ./vars.sh
 /usr/lib/kafka/bin/kafka-console-consumer.sh \
     --bootstrap-server "$BOOTSTRAP_SERVERS" \
     --topic "$ANOMALY_OUTPUT_TOPIC" \
+    --from-beginning \
     --formatter kafka.tools.DefaultMessageFormatter \
     --property print.value=true \
     --property value.deserializer=org.apache.kafka.common.serialization.StringDeserializer

@@ -3,35 +3,44 @@ package com.example.bigdata.functions;
 import com.example.bigdata.model.Crime;
 import com.example.bigdata.model.CrimeFbi;
 import com.example.bigdata.model.IucrCode;
-import org.apache.flink.api.common.state.BroadcastState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
-import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
-import org.apache.flink.util.Collector;
+import org.apache.flink.api.common.functions.RichMapFunction;
+import org.apache.flink.configuration.Configuration;
 
-public class CrimeFbiEnrichmentFunction extends BroadcastProcessFunction<Crime, IucrCode, CrimeFbi> {
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-    private final MapStateDescriptor<String, IucrCode> iucrCodeStateDescriptor;
+public class CrimeFbiEnrichmentFunction extends RichMapFunction<Crime, CrimeFbi> {
 
-    public CrimeFbiEnrichmentFunction(MapStateDescriptor<String, IucrCode> iucrCodeStateDescriptor) {
-        this.iucrCodeStateDescriptor = iucrCodeStateDescriptor;
+    private final String iucrCodeFile;
+    private Map<String, IucrCode> iucrCodeMap;
+
+    public CrimeFbiEnrichmentFunction(String iucrCodeFile) {
+        this.iucrCodeFile = iucrCodeFile;
     }
 
     @Override
-    public void processElement(Crime value, BroadcastProcessFunction<Crime, IucrCode, CrimeFbi>.ReadOnlyContext ctx, Collector<CrimeFbi> out) throws Exception {
-        ReadOnlyBroadcastState<String, IucrCode> state = ctx.getBroadcastState(iucrCodeStateDescriptor);
+    public void open(Configuration parameters) throws Exception {
+        File file = getRuntimeContext().getDistributedCache().getFile(iucrCodeFile);
+
+        try (Stream<String> lines = Files.lines(file.toPath(), StandardCharsets.UTF_8)) {
+            iucrCodeMap = lines.filter(s -> !s.startsWith("IUCR"))
+                    .map(IucrCode::fromString)
+                    .collect(Collectors.toMap(IucrCode::getCode, iucrCode -> iucrCode));
+        }
+    }
+
+    @Override
+    public CrimeFbi map(Crime value) {
         CrimeFbi crimeFbi;
-        if (state.contains(value.getIucrCode())) {
-            crimeFbi = CrimeFbi.fromCrime(value, state.get(value.getIucrCode()));
+        if (iucrCodeMap.containsKey(value.getIucrCode())) {
+            crimeFbi = CrimeFbi.fromCrime(value, iucrCodeMap.get(value.getIucrCode()));
         } else {
             crimeFbi = CrimeFbi.fromCrime(value);
         }
-        out.collect(crimeFbi);
-    }
-
-    @Override
-    public void processBroadcastElement(IucrCode value, BroadcastProcessFunction<Crime, IucrCode, CrimeFbi>.Context ctx, Collector<CrimeFbi> out) throws Exception {
-        BroadcastState<String, IucrCode> state = ctx.getBroadcastState(iucrCodeStateDescriptor);
-        state.put(value.getCode(), value);
+        return crimeFbi;
     }
 }

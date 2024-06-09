@@ -10,13 +10,13 @@ else
 fi
 
 echo "Cleaning up"
-rm -rf "$INPUT_FILE"
 rm -rf "$INPUT_DIR"
 rm -rf "$INPUT_DIR.zip"
+rm "$IUCR_INPUT_FILE"
 hadoop fs -rm -r -f "$FLINK_CHECKPOINT_DIR"
 
 echo "Copying input files from GCS"
-hadoop fs -copyToLocal gs://"${BUCKET_NAME}"/Chicago_Police_Department_-_Illinois_Uniform_Crime_Reporting__IUCR__Codes.csv "$INPUT_FILE" || exit
+hadoop fs -copyToLocal gs://"${BUCKET_NAME}"/Chicago_Police_Department_-_Illinois_Uniform_Crime_Reporting__IUCR__Codes.csv "$IUCR_INPUT_FILE" || exit
 hadoop fs -copyToLocal gs://"${BUCKET_NAME}"/crimes-in-chicago_result.zip "$INPUT_DIR.zip" || exit
 
 echo "Unzipping input files"
@@ -29,16 +29,11 @@ sudo cp ~/*-*.jar /usr/lib/flink/lib/
 
 echo "Checking if kafka topics already exist"
 kafka-topics.sh --delete --bootstrap-server "$BOOTSTRAP_SERVERS" --topic "$CRIMES_INPUT_TOPIC"
-kafka-topics.sh --delete --bootstrap-server "$BOOTSTRAP_SERVERS" --topic "$IUCR_INPUT_TOPIC"
 kafka-topics.sh --delete --bootstrap-server "$BOOTSTRAP_SERVERS" --topic "$ANOMALY_OUTPUT_TOPIC"
 
 echo "Creating kafka topics"
-kafka-topics.sh --create --topic "$CRIMES_INPUT_TOPIC" --bootstrap-server "$BOOTSTRAP_SERVERS" --replication-factor 1 --partitions 1
-kafka-topics.sh --create --topic "$IUCR_INPUT_TOPIC" --bootstrap-server "$BOOTSTRAP_SERVERS" --replication-factor 1 --partitions 1
+kafka-topics.sh --create --topic "$CRIMES_INPUT_TOPIC" --bootstrap-server "$BOOTSTRAP_SERVERS" --replication-factor 1 --partitions 2
 kafka-topics.sh --create --topic "$ANOMALY_OUTPUT_TOPIC" --bootstrap-server "$BOOTSTRAP_SERVERS" --replication-factor 1 --partitions 1
-
-echo "Sending iucr codes data to kafka topic"
-cat "$INPUT_FILE" | awk -F ',' 'NR>1{print $1 ":" $1 "," $2 "," $3 "," $4}' | kafka-console-producer.sh --bootstrap-server "$BOOTSTRAP_SERVERS" --topic "$IUCR_INPUT_TOPIC" --property key.separator=: --property parse.key=true
 
 echo "Starting cassandra"
 sudo apt-get update

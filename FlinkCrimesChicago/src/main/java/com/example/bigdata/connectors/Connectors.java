@@ -3,7 +3,6 @@ package com.example.bigdata.connectors;
 import com.example.bigdata.Parameters;
 import com.example.bigdata.model.Crime;
 import com.example.bigdata.model.CrimeAggregate;
-import com.example.bigdata.model.IucrCode;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.connector.base.DeliveryGuarantee;
@@ -23,16 +22,6 @@ public class Connectors {
                 .setGroupId(properties.get(Parameters.KAFKA_GROUP_ID))
                 .setStartingOffsets(OffsetsInitializer.committedOffsets(OffsetResetStrategy.EARLIEST))
                 .setDeserializer(new CrimeKafkaDeserializationSchema())
-                .build();
-    }
-
-    public static KafkaSource<IucrCode> getIucrSource(ParameterTool properties) {
-        return KafkaSource.<IucrCode>builder()
-                .setBootstrapServers(properties.get(Parameters.BOOTSTRAP_SERVERS))
-                .setTopics(properties.get(Parameters.IUCR_INPUT_TOPIC))
-                .setGroupId(properties.get(Parameters.KAFKA_GROUP_ID))
-                .setStartingOffsets(OffsetsInitializer.earliest())
-                .setDeserializer(new IucrCodeKafkaDeserializationSchema())
                 .build();
     }
 

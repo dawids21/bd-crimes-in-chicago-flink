@@ -4,7 +4,7 @@ flink run -m yarn-cluster -p 2 \
    -yjm 1024m -ytm 1024m -c \
    com.example.bigdata.Main FlinkCrimesChicago.jar \
     --crimes-input-topic "$CRIMES_INPUT_TOPIC" \
-    --iucr-input-topic "$IUCR_INPUT_TOPIC" \
+    --iucr-input-file "$IUCR_INPUT_FILE" \
     --anomaly-output-topic "$ANOMALY_OUTPUT_TOPIC" \
     --bootstrap-servers "$BOOTSTRAP_SERVERS" \
     --kafka-group-id "$KAFKA_GROUP_ID" \
